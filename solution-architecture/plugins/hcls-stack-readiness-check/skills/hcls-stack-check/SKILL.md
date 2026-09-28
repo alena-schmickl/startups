@@ -66,13 +66,13 @@ not-a-compliance boundary statement, and both MUST be shown to the user.
 
 The skill reads these external sources at runtime. All access is read-only.
 
-| Reference | Purpose | Access |
-|---|---|---|
-| AWS HIPAA Eligible Services Reference (`https://aws.amazon.com/compliance/hipaa-eligible-services-reference/`) | Source of truth for eligibility | HTTPS GET, host-validated, live every run |
-| AWS DevOps Agent (`aidevops`: ListAgentSpaces, ListAssociations) | Locate the associated account + assumable role | Read-only API |
-| AWS Resource Explorer (`resource-explorer-2`: Search, GetIndex) | Enumerate resources (CFN + out-of-IaC) | Read-only API |
-| AWS SSM global-infrastructure public parameters (`ssm:GetParametersByPath`) | Which regions a service offers | Read-only, public params |
-| AWS STS (`sts:AssumeRole`) | Assume the DevOps Agent account's role | Read-only downstream use only |
+| Reference                                                                                                      | Purpose                                        | Access                                    |
+| -------------------------------------------------------------------------------------------------------------- | ---------------------------------------------- | ----------------------------------------- |
+| AWS HIPAA Eligible Services Reference (`https://aws.amazon.com/compliance/hipaa-eligible-services-reference/`) | Source of truth for eligibility                | HTTPS GET, host-validated, live every run |
+| AWS DevOps Agent (`aidevops`: ListAgentSpaces, ListAssociations)                                               | Locate the associated account + assumable role | Read-only API                             |
+| AWS Resource Explorer (`resource-explorer-2`: Search, GetIndex)                                                | Enumerate resources (CFN + out-of-IaC)         | Read-only API                             |
+| AWS SSM global-infrastructure public parameters (`ssm:GetParametersByPath`)                                    | Which regions a service offers                 | Read-only, public params                  |
+| AWS STS (`sts:AssumeRole`)                                                                                     | Assume the DevOps Agent account's role         | Read-only downstream use only             |
 
 **Risk tier L2 rationale (OWASP AST04):** the skill performs a cross-account
 `sts:AssumeRole` into the DevOps-Agent-associated account. Everything downstream
