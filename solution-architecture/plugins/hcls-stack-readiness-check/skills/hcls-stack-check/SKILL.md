@@ -4,17 +4,17 @@ description: >-
   Reads an AWS DevOps Agent topology (live pull or local export) and reports two
   facts per resource: whether its service is on AWS's published HIPAA Eligible
   Services Reference list, and whether it sits in an EU region / whether the
-  service offers an EU region. Factual membership + region check only — NOT a
+  service offers an EU region. Factual membership + region check only, NOT a
   compliance assessment and NOT legal advice. Use when someone asks about HIPAA
   eligibility, EU data residency, HCLS readiness, ghost instances, or "what is
-  running in my account and where."
+  running in my account and where." Triggers: HIPAA eligible, HIPAA eligibility,
+  EU data residency, EU region check, HCLS readiness, stack readiness, check my
+  stack, ghost instances, what is running in my account, is my stack in the EU.
 license: Apache-2.0
 compatibility: "Kiro CLI, Claude Code, Quick Desktop"
-trigger: "HIPAA eligible, HIPAA eligibility, EU data residency, EU region check, HCLS readiness, stack readiness, check my stack, ghost instances, what is running in my account, is my stack in the EU"
-tools: [run_python]
+allowed-tools: [run_python]
 metadata:
   author: alschmic
-  version: "1.0.0"
   last_validated: 2026-09-28
   risk_tier: L2
   audience: startup
@@ -27,13 +27,13 @@ metadata:
 Produce a factual HCLS readiness snapshot of an AWS account's inventory. For
 each resource discovered in the AWS DevOps Agent topology, report:
 
-1. **HIPAA eligibility** — is the resource's service on AWS's published HIPAA
+1. **HIPAA eligibility**: is the resource's service on AWS's published HIPAA
    Eligible Services Reference list (yes / yes-with-caveat / not-on-list)?
-2. **EU residency** — is the resource in an EU region, and does the service even
+2. **EU residency**: is the resource in an EU region, and does the service even
    offer an EU region (yes / no / unknown)?
 
 This is a **factual membership + region check only. It is NOT a compliance
-assessment and NOT legal advice** — it reports list membership and region facts,
+assessment and NOT legal advice.** It reports list membership and region facts,
 never a "HIPAA-compliant" or "GDPR-ready" verdict.
 
 **Why one skill, not two:** the HIPAA and EU checks share the same trigger
@@ -44,9 +44,9 @@ so they are consolidated per the >70%-shared-trigger rule rather than split.
 ### When to use
 
 Use when a startup SA references a DevOps Agent topology, HIPAA eligibility, EU
-data residency, or healthcare/life-sciences readiness — e.g. "which resources
-run on non-HIPAA-eligible services?", "is everything in my account in the EU?",
-"any ghost instances not deployed via IaC?".
+data residency, or healthcare/life-sciences readiness. For example: "which
+resources run on non-HIPAA-eligible services?", "is everything in my account in
+the EU?", "any ghost instances not deployed via IaC?".
 
 ### When NOT to use
 
@@ -77,55 +77,55 @@ The skill reads these external sources at runtime. All access is read-only.
 **Risk tier L2 rationale (OWASP AST04):** the skill performs a cross-account
 `sts:AssumeRole` into the DevOps-Agent-associated account. Everything downstream
 is strictly read-only (no writes, no mutations, never triggers an
-investigation), and no credentials are hardcoded (default chain or `AWS_PROFILE`)
-— but because it assumes an externally-provided role, it is L2, not L1.
+investigation), and no credentials are hardcoded (default chain or `AWS_PROFILE`).
+Because it assumes an externally-provided role, it is L2, not L1.
 
 ## The rules this skill enforces
 
 These invariants are implemented in the deterministic core (`src/`) and stated
 here so the behavior is auditable. Follow them; do not re-implement them by hand.
 
-- **Rule 1 — Fail closed on the topology source.** Live pull from the DevOps
+- **Rule 1, fail closed on the topology source.** Live pull from the DevOps
   Agent by default, or a local `.json` export. If the source is unreachable or
-  misconfigured, stop with an actionable error — never emit a partial inventory
+  misconfigured, stop with an actionable error. Never emit a partial inventory
   that could read as "all clear."
-- **Rule 2 — HIPAA list is live-only and gated.** Fetch the reference page live
-  every run (no cache, no bundled fallback). Trust the parse only if ≥ 50
+- **Rule 2, HIPAA list is live-only and gated.** Fetch the reference page live
+  every run (no cache, no bundled fallback). Trust the parse only if at least 50
   services parsed AND sentinels S3/EC2/RDS present; otherwise fail loudly.
-- **Rule 3 — Membership matching is exact and caveat-aware.** Normalized,
+- **Rule 3, membership matching is exact and caveat-aware.** Normalized,
   case-insensitive name match (strip `Amazon `/`AWS `; index parenthesized short
   codes). Verdicts: `yes` / `yes-with-caveat` / `not-on-list`.
-- **Rule 4 — Region facts; EU availability may be unknown.** Pure EU-region
+- **Rule 4, region facts; EU availability may be unknown.** Pure EU-region
   classification; live SSM lookup for whether a service offers an EU region.
   Report `unknown` rather than a false yes/no.
-- **Rule 5 — Make coverage gaps visible.** Resource Explorer preflight →
+- **Rule 5, make coverage gaps visible.** Resource Explorer preflight to
   OK / HIGH / INFO. If RE status can't be determined, report coverage as
   unverified, never a false all-clear.
 
 ## Workflow
 
-Run the deterministic core; it wires source → ingest → HIPAA snapshot →
-preflight → per-resource checks → report.
+Run the deterministic core; it wires source, ingest, HIPAA snapshot, preflight,
+per-resource checks, and report in one pass.
 
 ### 1. Resolve and load the topology
 
 - **Mode:** code
-- **Tool:** `run_python` — `python src/main.py [--topology <live|path>]` (default: live)
+- **Tool:** `run_python`, `python src/main.py [--topology <live|path>]` (default: live)
 - **Input:** optional `--topology` (a local `.json` export path, or `live`)
-- **Output:** normalized resources `{resource_id, service, region}` + active discovery paths
+- **Output:** normalized resources `{resource_id, service, region}` plus active discovery paths
 - **Validate:** at least the source resolved without error; discovery paths recorded
 - **On failure:** the run stops and prints an actionable message, e.g. "Can't
   reach the DevOps Agent live topology (no Agent Space configured, or the SDK
   lacks the devops-agent client). Run against a local export with
   `--topology <path>`, or upgrade boto3." Do not proceed with a partial stack.
 
-### 2. Fetch + validate the HIPAA list
+### 2. Fetch and validate the HIPAA list
 
 - **Mode:** code
 - **Tool:** `run_python` (same run)
 - **Input:** none (live fetch); optional dev override via `HCLS_SNAPSHOT_FILE`
 - **Output:** validated list of `{name, caveat}` services
-- **Validate:** ≥ 50 services AND S3/EC2/RDS present (the gate)
+- **Validate:** at least 50 services AND S3/EC2/RDS present (the gate)
 - **On failure:** stop and report "Could not retrieve/validate the live HIPAA
   Eligible Services list; not reporting against a partial list." Never fall back
   to stale or empty data.
@@ -134,10 +134,10 @@ preflight → per-resource checks → report.
 
 - **Mode:** code
 - **Tool:** `run_python` (same run)
-- **Input:** normalized resources + validated HIPAA list + RE preflight status
+- **Input:** normalized resources plus validated HIPAA list plus RE preflight status
 - **Output:** the markdown report (see Output)
 - **Validate:** every resource has a HIPAA verdict and an EU value; coverage
-  badge present; disclaimer + boundary present
+  badge present; disclaimer and boundary present
 - **On failure:** if no resources resolved, still render the report with a
   "(no resources with a resolvable service)" row and the coverage note, so the
   empty state is a reported state, not a crash.
@@ -147,14 +147,14 @@ preflight → per-resource checks → report.
 A single markdown report, in this order:
 
 1. Title
-2. **AWS HIPAA disclaimer (verbatim)** — required
-3. **Not-a-compliance boundary statement** — required
+2. **AWS HIPAA disclaimer (verbatim)**, required
+3. **Not-a-compliance boundary statement**, required
 4. HIPAA list source line (live, fetch timestamp, service count)
-5. Discovery-coverage badge — 🟢 OK / 🟡 INFO / 🔴 HIGH (color paired with the
+5. Discovery-coverage badge: 🟢 OK / 🟡 INFO / 🔴 HIGH (color paired with the
    text label, so it is never color-only)
 6. Results table: `resource_id | service | hipaa_eligible | region | eu`
    (`hipaa_eligible` is `yes`, `yes* (<caveat>)`, or `not on list`)
-7. Footer: topology source (live vs local) + active discovery paths
+7. Footer: topology source (live vs local) plus active discovery paths
 
 **Display the report verbatim.** The orchestrator MUST surface the report text
 as produced and MUST NOT summarize, re-rank, or re-interpret it, because
@@ -168,19 +168,19 @@ compliance-verdict framing this skill forbids.
   the LLM is for framing and answering follow-up questions about the report.
 - Fail closed and say what the user does next, in plain language.
 - Preserve the three-state outcomes (`yes-with-caveat`, `unknown`, coverage
-  `INFO`) — they carry real information a binary would destroy.
+  `INFO`). They carry real information a binary would destroy.
 
 ### Don't
 - Don't turn the report into a compliance verdict or legal advice.
-- Don't cache or hardcode the HIPAA list; it must be live + gated every run.
+- Don't cache or hardcode the HIPAA list; it must be live and gated every run.
 - Don't report "all clear" when coverage is unverified (RE status unknown).
 
 ### Common failures
-- **`devops-agent` client missing** from an older boto3 → live pull blocked.
+- **`devops-agent` client missing** from an older boto3 blocks the live pull.
   Fix: upgrade boto3, or use `--topology <path>`.
-- **No Resource Explorer aggregator index** in the target account → HIGH
-  coverage warning (out-of-IaC resources invisible). Fix: enable RE.
-- **HIPAA page layout change** → validation gate fails and the run stops (by
+- **No Resource Explorer aggregator index** in the target account triggers a
+  HIGH coverage warning (out-of-IaC resources invisible). Fix: enable RE.
+- **HIPAA page layout change** trips the validation gate and the run stops (by
   design) rather than under-reporting.
 
 ### When to ask the user
@@ -199,15 +199,15 @@ compliance-verdict framing this skill forbids.
 ## Evaluation cases
 
 1. **Happy path (local export):** `--topology tests/fixtures/sample_topology.json`
-   → report renders with a HIPAA verdict + EU value for every resolvable
+   renders a report with a HIPAA verdict and EU value for every resolvable
    resource, disclaimer and boundary present. Expected: exit 0.
-2. **Caveat match:** a resource on a service listed with a caveat → row shows
-   `yes* (<caveat>)`, not a bare `yes`.
-3. **Fail-closed source:** live pull with no Agent Space / no `devops-agent`
-   client → `TopologySourceError`, actionable message, non-zero exit, no partial
-   report emitted.
+2. **Caveat match:** a resource on a service listed with a caveat produces a row
+   showing `yes* (<caveat>)`, not a bare `yes`.
+3. **Fail-closed source:** live pull with no Agent Space or no `devops-agent`
+   client raises `TopologySourceError`, an actionable message, and a non-zero
+   exit, with no partial report emitted.
 4. **Coverage gap (edge):** topology with only CloudFormation discovery and RE
-   disabled → report includes the 🔴 HIGH coverage warning.
+   disabled includes the 🔴 HIGH coverage warning.
 5. **HIPAA gate failure (edge):** a too-small/garbled list (see
-   `tests/fixtures/hipaa_page_too_small.html`) → run stops with a validation
+   `tests/fixtures/hipaa_page_too_small.html`) stops the run with a validation
    error rather than reporting against a partial list.

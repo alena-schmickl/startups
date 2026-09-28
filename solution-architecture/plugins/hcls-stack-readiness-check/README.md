@@ -4,9 +4,9 @@ A factual HCLS (healthcare / life-sciences) readiness checker for a startup's
 AWS stack. It reads an AWS DevOps Agent topology (pulled live by default, or
 from a local export) and produces a readiness report answering two questions:
 
-1. **HIPAA eligibility** — which resources run on services that are on AWS's
+1. **HIPAA eligibility**: which resources run on services that are on AWS's
    published [HIPAA Eligible Services Reference][hipaa-ref] list.
-2. **EU data residency** — which resources sit in an EU region, and whether each
+2. **EU data residency**: which resources sit in an EU region, and whether each
    service even offers an EU region.
 
 > **This is a factual membership + region check only. It is NOT a compliance
@@ -19,16 +19,16 @@ from a local export) and produces a readiness report answering two questions:
 This is a skill (`SKILL.md`) plus a small deterministic Python core (`src/`).
 The split is deliberate:
 
-- **`SKILL.md` owns the contract** — when to run, the fail-closed policy, the
+- **`SKILL.md` owns the contract**: when to run, the fail-closed policy, the
   HIPAA-list validation gate, the matching and region rules, and the required
   output boundary and disclaimer.
-- **`src/` owns enforcement** — the correctness-critical steps where "described
+- **`src/` owns enforcement**: the correctness-critical steps where "described
   correctly" is not the same as "done correctly": live HTML parsing of the
   HIPAA list behind a validation gate, exact caveat-aware name matching across
   every resource, live region lookups, and fail-closed sourcing. A prose rule is
   a hope of compliance; the code's `raise` is a guarantee.
 
-See [`SKILL.md`](./SKILL.md) for the full rule set (Rules 1–5) and workflow.
+See [`SKILL.md`](./SKILL.md) for the full rule set (Rules 1 to 5) and workflow.
 
 ## Key guarantees
 
