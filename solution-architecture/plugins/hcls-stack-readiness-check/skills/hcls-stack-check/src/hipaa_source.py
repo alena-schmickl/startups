@@ -279,7 +279,7 @@ def fetch_live_snapshot(timeout: int = 15) -> Snapshot:
         )
     req = Request(HIPAA_REFERENCE_URL, headers={"User-Agent": _BROWSER_UA})
     try:
-        # nosemgrep: python.lang.security.audit.dynamic-urllib-use-detected.dynamic-urllib-use-detected -- URL is a fixed module constant, validated https + amazon.com above; not user-controlled.
+        # nosemgrep: python.lang.security.audit.dynamic-urllib-use-detected.dynamic-urllib-use-detected,gitlab.bandit.B310-1 -- URL is a fixed module constant, validated https + amazon.com above; not user-controlled.
         with urlopen(req, timeout=timeout) as resp:  # noqa: S310  # nosec B310 - fixed, validated https AWS URL
             status = getattr(resp, "status", resp.getcode())
             if status != 200:
