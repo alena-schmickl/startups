@@ -5,7 +5,7 @@
 #
 # Why each rule is skipped:
 #   B101 - pytest uses the assert statement as its assertion mechanism; the
-#          only Python here is the skill's deterministic core plus its pytest
+#          only Python here is skill deterministic cores plus their pytest
 #          suites, never production guard logic that -O would strip.
 #   B105 - flags string literals beginning with the four-letter prefix p-a-s-s
 #          (e.g. test fixtures or report text). Real secret scanning is done by

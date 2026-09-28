@@ -72,7 +72,8 @@ jobs:
         # Pass 1: migration-to-aws scripts with the plugin's own config (B101/B105 skipped — see bandit.yml).
         # Pass 2: aws-startup-advisor scripts with its own config (same skips — the migration skills
         #         were consolidated into this plugin, carrying the same pytest suites).
-        # Pass 3: hcls-stack-readiness-check with its own config (B101/B105 skipped — pytest suite asserts).
+        # Pass 3: aws-startups-solution-architecture with its own config (B101/B105 skipped — the
+        #         hcls-stack-check skill ships a deterministic core plus a pytest suite).
         # Pass 4: everything else with no skips, so future Python anywhere gets full bandit strictness.
         # Each plugin's tests/ is additionally excluded from pass 4: they are pytest suites (assert is
         # the assertion mechanism, not a guard) that also contain a test fixture string starting with
@@ -86,23 +87,23 @@ jobs:
           PLUGIN_CFG=$PLUGIN_DIR/bandit.yml
           ADVISOR_DIR=advisor/plugins/aws-startup-advisor
           ADVISOR_CFG=$ADVISOR_DIR/bandit.yml
-          HCLS_DIR=solution-architecture/plugins/hcls-stack-readiness-check
-          HCLS_CFG=$HCLS_DIR/bandit.yml
+          SA_DIR=solution-architecture/plugins/aws-startups-solution-architecture
+          SA_CFG=$SA_DIR/bandit.yml
           set +e
           bandit -r "$PLUGIN_DIR" -c "$PLUGIN_CFG" -x "$PLUGIN_DIR/tests" -f sarif -o bandit-plugin.sarif
           PLUGIN_EXIT=$?
           bandit -r "$ADVISOR_DIR" -c "$ADVISOR_CFG" -x "$ADVISOR_DIR/tests" -f sarif -o bandit-advisor.sarif
           ADVISOR_EXIT=$?
-          bandit -r "$HCLS_DIR" -c "$HCLS_CFG" -x "$HCLS_DIR/skills/hcls-stack-check/tests" -f sarif -o bandit-hcls.sarif
-          HCLS_EXIT=$?
-          bandit -r . --exclude "./$PLUGIN_DIR,./$PLUGIN_DIR/tests,./$ADVISOR_DIR,./$ADVISOR_DIR/tests,./$HCLS_DIR,./$HCLS_DIR/skills/hcls-stack-check/tests" -f sarif -o bandit-other.sarif
+          bandit -r "$SA_DIR" -c "$SA_CFG" -x "$SA_DIR/skills/hcls-stack-check/tests" -f sarif -o bandit-sa.sarif
+          SA_EXIT=$?
+          bandit -r . --exclude "./$PLUGIN_DIR,./$PLUGIN_DIR/tests,./$ADVISOR_DIR,./$ADVISOR_DIR/tests,./$SA_DIR,./$SA_DIR/skills/hcls-stack-check/tests" -f sarif -o bandit-other.sarif
           OTHER_EXIT=$?
           set -e
           # Merge: keep pass-1 envelope, concatenate results from passes 2, 3 and 4.
-          jq -s '.[0] as $p | .[1] as $a | .[2] as $h | .[3] as $o | $p | .runs[0].results += ($a.runs[0].results + $h.runs[0].results + $o.runs[0].results)' \
-            bandit-plugin.sarif bandit-advisor.sarif bandit-hcls.sarif bandit-other.sarif > bandit-report.sarif
+          jq -s '.[0] as $p | .[1] as $a | .[2] as $s | .[3] as $o | $p | .runs[0].results += ($a.runs[0].results + $s.runs[0].results + $o.runs[0].results)' \
+            bandit-plugin.sarif bandit-advisor.sarif bandit-sa.sarif bandit-other.sarif > bandit-report.sarif
           # Surface non-zero from any pass.
-          if [ "$PLUGIN_EXIT" -ne 0 ] || [ "$ADVISOR_EXIT" -ne 0 ] || [ "$HCLS_EXIT" -ne 0 ] || [ "$OTHER_EXIT" -ne 0 ]; then
+          if [ "$PLUGIN_EXIT" -ne 0 ] || [ "$ADVISOR_EXIT" -ne 0 ] || [ "$SA_EXIT" -ne 0 ] || [ "$OTHER_EXIT" -ne 0 ]; then
             BANDIT_EXIT=1
           else
             BANDIT_EXIT=0

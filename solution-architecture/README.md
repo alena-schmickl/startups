@@ -8,8 +8,6 @@ Startup-specific plugins and tools from the AWS Startups Solution Architecture t
 
   Currently two exemplar skills, deliberately. The plugin is scaffolding for Startup SAs to contribute the technical patterns they solve repeatedly; see [what to contribute](plugins/aws-startups-solution-architecture/README.md#what-to-contribute) for the verified gap list.
 
-- **[`hcls-stack-readiness-check`](plugins/hcls-stack-readiness-check/)**. A factual HCLS readiness check for a startup's AWS stack. Reads an AWS DevOps Agent topology (live pull or local export) and reports, per resource, whether its service is on AWS's published HIPAA Eligible Services Reference list and whether it sits in an EU region. A factual membership + region check only, not a compliance assessment and not legal advice. Addresses the "compliance groundwork (HIPAA), scoped to technical controls" gap called out below; it is a `SKILL.md` plus a small deterministic Python core that keeps the correctness-critical steps (live list parsing behind a validation gate, exact matching, fail-closed sourcing) out of the model.
-
 ## Where aws-dev-toolkit went
 
 `aws-dev-toolkit` was removed. Its skills and agents were overwhelmingly general-purpose AWS engineering guidance, which Agent Toolkit for AWS now owns, and that overlap is why it was deprecated. Nothing was ported.

@@ -147,12 +147,12 @@ run = [
 # =========
 
 [tasks."security:bandit"]
-description = "Run Bandit (per-plugin skip configs for migration-to-aws, aws-startup-advisor, and hcls-stack-readiness-check; rest of repo with full strictness — mirrors the CI bandit job in .github/workflows/security-scanners.yml)"
+description = "Run Bandit (per-plugin skip configs for migration-to-aws, aws-startup-advisor, and aws-startups-solution-architecture; rest of repo with full strictness — mirrors the CI bandit job in .github/workflows/security-scanners.yml)"
 run = [
   "bandit -r migrate/plugins/migration-to-aws -c migrate/plugins/migration-to-aws/bandit.yml -x migrate/plugins/migration-to-aws/skills/agent-advisor/scripts/.venv,migrate/plugins/migration-to-aws/skills/llm-to-bedrock/scripts/.venv,migrate/plugins/migration-to-aws/tests",
   "bandit -r advisor/plugins/aws-startup-advisor -c advisor/plugins/aws-startup-advisor/bandit.yml -x advisor/plugins/aws-startup-advisor/skills/agent-advisor/scripts/.venv,advisor/plugins/aws-startup-advisor/skills/llm-to-bedrock/scripts/.venv,advisor/plugins/aws-startup-advisor/tests",
-  "bandit -r solution-architecture/plugins/hcls-stack-readiness-check -c solution-architecture/plugins/hcls-stack-readiness-check/bandit.yml -x solution-architecture/plugins/hcls-stack-readiness-check/skills/hcls-stack-check/tests",
-  "bandit -r . --exclude ./.tmp,./node_modules,./migrate/plugins/migration-to-aws,./advisor/plugins/aws-startup-advisor,./solution-architecture/plugins/hcls-stack-readiness-check",
+  "bandit -r solution-architecture/plugins/aws-startups-solution-architecture -c solution-architecture/plugins/aws-startups-solution-architecture/bandit.yml -x solution-architecture/plugins/aws-startups-solution-architecture/skills/hcls-stack-check/tests",
+  "bandit -r . --exclude ./.tmp,./node_modules,./migrate/plugins/migration-to-aws,./advisor/plugins/aws-startup-advisor,./solution-architecture/plugins/aws-startups-solution-architecture",
 ]
 
 [tasks."security:semgrep"]
