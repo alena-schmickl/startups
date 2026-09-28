@@ -93,8 +93,8 @@ here so the behavior is auditable. Follow them; do not re-implement them by hand
   every run (no cache, no bundled fallback). Trust the parse only if at least 50
   services parsed AND sentinels S3/EC2/RDS present; otherwise fail loudly.
 - **Rule 3, membership matching is exact and caveat-aware.** Normalized,
-  case-insensitive name match (strip `Amazon `/`AWS `; index parenthesized short
-  codes). Verdicts: `yes` / `yes-with-caveat` / `not-on-list`.
+  case-insensitive name match (strip a leading `Amazon` or `AWS` prefix; index
+  parenthesized short codes). Verdicts: `yes` / `yes-with-caveat` / `not-on-list`.
 - **Rule 4, region facts; EU availability may be unknown.** Pure EU-region
   classification; live SSM lookup for whether a service offers an EU region.
   Report `unknown` rather than a false yes/no.
@@ -164,6 +164,7 @@ compliance-verdict framing this skill forbids.
 ## Lessons Learned
 
 ### Do
+
 - Keep deterministic work (parsing, matching, region/threshold logic) in code;
   the LLM is for framing and answering follow-up questions about the report.
 - Fail closed and say what the user does next, in plain language.
@@ -171,11 +172,13 @@ compliance-verdict framing this skill forbids.
   `INFO`). They carry real information a binary would destroy.
 
 ### Don't
+
 - Don't turn the report into a compliance verdict or legal advice.
 - Don't cache or hardcode the HIPAA list; it must be live and gated every run.
 - Don't report "all clear" when coverage is unverified (RE status unknown).
 
 ### Common failures
+
 - **`devops-agent` client missing** from an older boto3 blocks the live pull.
   Fix: upgrade boto3, or use `--topology <path>`.
 - **No Resource Explorer aggregator index** in the target account triggers a
@@ -184,6 +187,7 @@ compliance-verdict framing this skill forbids.
   design) rather than under-reporting.
 
 ### When to ask the user
+
 - When neither a live pull nor a local export path is available, ask which the
   user wants rather than guessing.
 - When the account has multiple DevOps Agent associations, confirm scope if the
