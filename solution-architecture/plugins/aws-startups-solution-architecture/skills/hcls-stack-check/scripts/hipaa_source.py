@@ -112,7 +112,7 @@ class ServiceEntry(TypedDict):
 class Snapshot(TypedDict):
     services: list  # list[ServiceEntry]
     fetched_at: str  # ISO timestamp
-    source: str  # always "live"
+    source: str  # "live" for a network fetch, "dev-override" for a local file
     disclaimer: str
 
 
@@ -273,14 +273,14 @@ def fetch_live_snapshot(timeout: int = 15) -> Snapshot:
     # never turn this into an SSRF or a file:// read. semgrep's dynamic-urllib
     # rule is a false positive here because of this guard + the fixed constant.
     parsed = urlparse(HIPAA_REFERENCE_URL)
-    if parsed.scheme != "https" or not parsed.netloc.endswith("amazon.com"):
+    if parsed.scheme != "https" or parsed.netloc != "aws.amazon.com":
         raise LiveFetchError(
-            f"Refusing to fetch non-https/non-amazon.com HIPAA reference URL: {HIPAA_REFERENCE_URL}"
+            f"Refusing to fetch non-https/non-aws.amazon.com HIPAA reference URL: {HIPAA_REFERENCE_URL}"
         )
     req = Request(HIPAA_REFERENCE_URL, headers={"User-Agent": _BROWSER_UA})
     try:
-        # nosemgrep: python.lang.security.audit.dynamic-urllib-use-detected.dynamic-urllib-use-detected,gitlab.bandit.B310-1 -- URL is a fixed module constant, validated https + amazon.com above; not user-controlled.
-        with urlopen(req, timeout=timeout) as resp:  # noqa: S310  # nosec B310 - fixed, validated https AWS URL
+        # nosemgrep: python.lang.security.audit.dynamic-urllib-use-detected.dynamic-urllib-use-detected,gitlab.bandit.B310-1 -- URL is a fixed module constant, validated https + exact aws.amazon.com host above; not user-controlled.
+        with urlopen(req, timeout=timeout) as resp:  # noqa: S310  # nosec B310
             status = getattr(resp, "status", resp.getcode())
             if status != 200:
                 raise LiveFetchError(f"Unexpected HTTP status {status} from {HIPAA_REFERENCE_URL}")
@@ -326,7 +326,9 @@ def _load_dev_override(path: str) -> Snapshot:
     return Snapshot(
         services=services,
         fetched_at=_dt.datetime.now(_dt.timezone.utc).isoformat(),
-        source="live",
+        # Dev/testing escape hatch: this list came from a local file, NOT a live
+        # fetch. Label it honestly so the report does not claim "live, fetched".
+        source="dev-override",
         disclaimer=DISCLAIMER_TEXT,
     )
 
