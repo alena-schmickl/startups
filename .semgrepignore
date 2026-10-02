@@ -6,13 +6,6 @@
 **/fixtures/
 **/evals/**/scripts/
 
-# hcls-stack-check pytest suite: `assert` is pytest's assertion mechanism
-# (flagged as gitlab.bandit.B101), not production guard logic. Tests are
-# co-located with the code under scripts/ (test_*.py); the deterministic source
-# is still fully scanned. Also ignore the pinned uv .venv (third-party code).
-solution-architecture/plugins/aws-startups-solution-architecture/skills/hcls-stack-check/scripts/test_*.py
-solution-architecture/plugins/aws-startups-solution-architecture/skills/hcls-stack-check/scripts/.venv/
-
 # Lock files (auto-generated)
 package-lock.json
 yarn.lock
