@@ -2,7 +2,7 @@
 import os
 import sys
 
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
+sys.path.insert(0, os.path.dirname(__file__))
 
 import hipaa_check  # noqa: E402
 
@@ -40,3 +40,17 @@ def test_normalization_is_prefix_and_case_insensitive():
 
 def test_unlisted_service_returns_not_on_list():
     assert hipaa_check.check_service("Amazon SQS", _index())["verdict"] == hipaa_check.NOT_ON_LIST
+
+
+def test_normalize_name_is_single_source_of_truth():
+    # hipaa_check.normalize_name must delegate to hipaa_source._normalize_name
+    # (no duplicate implementation).
+    import hipaa_source
+
+    for name in ("Amazon S3", "AWS Transcribe", "  amazon   ec2 ", ""):
+        assert hipaa_check.normalize_name(name) == hipaa_source._normalize_name(name)
+
+
+def test_unmapped_verdict_constant_exists_and_is_distinct():
+    assert hipaa_check.UNMAPPED == "unmapped"
+    assert hipaa_check.UNMAPPED != hipaa_check.NOT_ON_LIST

@@ -20,6 +20,11 @@ import hipaa_source
 YES = "yes"
 YES_WITH_CAVEAT = "yes-with-caveat"
 NOT_ON_LIST = "not-on-list"
+# Service could not be resolved to a known AWS name (e.g. an unmapped Resource
+# Explorer service code). We cannot assert list membership for a service we
+# could not even name, so this is DISTINCT from NOT_ON_LIST (which means "named
+# and genuinely absent from the list").
+UNMAPPED = "unmapped"
 
 # On the live page a service's short code appears in parentheses at the end of
 # the full display name, e.g. "Amazon Simple Storage Service (S3)" or "Amazon
@@ -32,15 +37,11 @@ _PAREN_CODE_RE = re.compile(r"\(([^)]+)\)\s*$")
 def normalize_name(name: str) -> str:
     """Normalize a service name for case-insensitive, prefix-insensitive match.
 
-    Strips a leading "Amazon " or "AWS " and lowercases. E.g.
-    "Amazon S3" -> "s3", "AWS Transcribe" -> "transcribe".
+    Single source of truth: delegates to hipaa_source._normalize_name so the
+    topology side and the HIPAA-list side normalize identically (strip a leading
+    "Amazon "/"AWS ", lowercase). E.g. "Amazon S3" -> "s3".
     """
-    n = " ".join((name or "").split()).strip()
-    for prefix in ("amazon ", "aws "):
-        if n.lower().startswith(prefix):
-            n = n[len(prefix):]
-            break
-    return n.lower().strip()
+    return hipaa_source._normalize_name(name)
 
 
 def _paren_code_alias(name: str) -> str | None:
