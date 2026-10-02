@@ -56,11 +56,16 @@ def render_hipaa_source_line(snapshot: dict) -> str:
     """Render a prominent top-of-report line describing the HIPAA list source.
 
     `snapshot` is a hipaa_source.Snapshot: {services, source, fetched_at, ...}.
-    The list is always live (the skill fails closed if it cannot be fetched or
-    validated), so this reports the fetch timestamp.
+    The list is normally live (the skill fails closed if it cannot be fetched or
+    validated). A `source` of "dev-override" means a local file was used via the
+    HCLS_SNAPSHOT_FILE escape hatch; label it honestly rather than claiming
+    "live, fetched".
     """
     fetched_at = snapshot.get("fetched_at", "unknown")
     count = len(snapshot.get("services", []))
+    source = snapshot.get("source", "live")
+    if source == "dev-override":
+        return f"**HIPAA list: dev-override (local file), loaded {fetched_at} ({count} services)**"
     return f"**HIPAA list: live, fetched {fetched_at} ({count} services)**"
 
 
@@ -70,6 +75,10 @@ def _hipaa_cell(verdict: str, caveat: str | None) -> str:
         return "yes"
     if verdict == "yes-with-caveat":
         return f"yes* ({caveat})" if caveat else "yes*"
+    if verdict == "unmapped":
+        # Service could not be resolved to a known AWS name, so membership was
+        # not checked. Distinct from "not on list" (named and genuinely absent).
+        return "unmapped (service not resolved)"
     return "not on list"
 
 
@@ -96,7 +105,7 @@ def render_row(row: dict) -> str:
     )
 
 
-def render_report(rows: Iterable[dict], discovery_paths: Iterable[str], coverage_verdict: dict, hipaa_snapshot: dict, topology_source_line: str | None = None) -> str:
+def render_report(rows: Iterable[dict], discovery_paths: Iterable[str], coverage_verdict: dict, hipaa_snapshot: dict, topology_source_line: str | None = None, account_id: str | None = None) -> str:
     """Assemble the full markdown report.
 
     Order, top to bottom:
@@ -106,8 +115,8 @@ def render_report(rows: Iterable[dict], discovery_paths: Iterable[str], coverage
       4. HIPAA source line (render_hipaa_source_line)
       5. Coverage warning (render_coverage_warning) at the top of the findings
       6. Results table (resource_id | service | hipaa_eligible | region | eu)
-      7. Footer: the topology source (local file vs live) + which discovery
-         paths were active
+      7. Footer: the topology source (local file vs live), the account the
+         inventory came from, and which discovery paths were active
     """
     rows = list(rows)
     paths = list(discovery_paths)
@@ -128,9 +137,10 @@ def render_report(rows: Iterable[dict], discovery_paths: Iterable[str], coverage
 
     active = ", ".join(paths) if paths else "(none reported)"
     source = topology_source_line or "(unspecified)"
+    account = f"\n\nInventory account: {account_id}." if account_id else ""
     parts.append(
         "## Discovery paths active\n\n"
-        f"Topology source: {source}.\n\n"
+        f"Topology source: {source}.{account}\n\n"
         f"Topology discovery paths active for this export: {active}."
     )
 
