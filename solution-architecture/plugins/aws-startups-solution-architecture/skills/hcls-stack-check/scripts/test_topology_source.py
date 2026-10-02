@@ -2,16 +2,16 @@
 
 Runnable with stdlib only (pytest not installed): each test_* function raises
 on failure. A __main__ block runs them all and prints PASS/FAIL. The real live
-network call stays skipped: we exercise the fail-closed paths by (a)
-monkeypatching fetch_live_topology to raise, and (b) monkeypatching the session
-factory so the real fetch_live_topology hits an UnknownServiceError (the
-verified condition where the installed SDK lacks the devops-agent client) with
-no network.
+network call stays skipped: we exercise the paths by (a) monkeypatching
+fetch_live_topology to raise, and (b) monkeypatching the session factory so the
+real fetch_live_topology drives Resource Explorer ListResources against an
+in-memory fake (both the no-index fail-closed case and the happy path) with no
+network.
 """
 import os
 import sys
 
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
+sys.path.insert(0, os.path.dirname(__file__))
 
 import topology_ingest  # noqa: E402
 import topology_source  # noqa: E402
@@ -29,7 +29,7 @@ def test_local_file_returns_dict_and_normalizes_to_three():
 def test_live_source_fail_closed_propagates():
     original = topology_source.fetch_live_topology
 
-    def _boom(region=None):
+    def _boom(region=None, **kwargs):
         raise topology_source.TopologySourceError("space not configured")
 
     topology_source.fetch_live_topology = _boom
@@ -47,7 +47,7 @@ def test_live_source_fail_closed_propagates():
 def test_default_none_is_live_and_fail_closed():
     original = topology_source.fetch_live_topology
 
-    def _boom(region=None):
+    def _boom(region=None, **kwargs):
         raise topology_source.TopologySourceError("space not configured")
 
     topology_source.fetch_live_topology = _boom
@@ -71,24 +71,33 @@ def test_bogus_source_string_fails_closed():
     assert raised, "expected TopologySourceError for a non-file, non-live source"
 
 
-def test_fetch_live_topology_fails_closed_when_sdk_lacks_client():
+def test_fetch_live_topology_fails_closed_when_re_has_no_index():
     # Exercise the REAL fetch_live_topology (no network): monkeypatch the
-    # session factory so client("devops-agent") raises UnknownServiceError, the
-    # verified condition in this environment. It must fail closed with a
-    # TopologySourceError whose message points at the missing SDK client.
+    # session factory so resource-explorer-2 ListResources raises a ClientError
+    # (the "no index configured" condition). It must fail closed with a
+    # TopologySourceError whose message points at Resource Explorer.
     try:
-        from botocore.exceptions import UnknownServiceError
+        from botocore.exceptions import ClientError
     except Exception:
-        print("SKIP test_fetch_live_topology_fails_closed_when_sdk_lacks_client (no botocore)")
+        print("SKIP test_fetch_live_topology_fails_closed_when_re_has_no_index (no botocore)")
         return
+
+    class _FakePaginator:
+        def paginate(self, **kwargs):
+            raise ClientError(
+                {"Error": {"Code": "ResourceNotFoundException", "Message": "no index"}},
+                "ListResources",
+            )
+
+    class _FakeReClient:
+        def get_paginator(self, name):
+            return _FakePaginator()
 
     class _FakeSession:
         region_name = "eu-central-1"
 
         def client(self, name, region_name=None):
-            raise UnknownServiceError(
-                service_name=name, known_service_names=["s3", "ec2"]
-            )
+            return _FakeReClient()
 
     original = topology_source._make_session
     topology_source._make_session = lambda: _FakeSession()
@@ -100,13 +109,64 @@ def test_fetch_live_topology_fails_closed_when_sdk_lacks_client():
             raised = exc
         assert raised is not None, "expected TopologySourceError, got none"
         msg = str(raised)
-        # Message must make clear the missing client BLOCKS the live pull and
-        # name both remedies (install/upgrade the client OR a local export).
-        assert "NOT installed in the current AWS SDK" in msg, msg
-        assert "live topology pull" in msg and "blocked" in msg, msg
+        assert "Resource Explorer" in msg, msg
         assert "--topology <path>" in msg, msg
     finally:
         topology_source._make_session = original
+
+
+def test_fetch_live_topology_lists_resources_and_captures_account():
+    # Happy path (no network): ListResources returns two resources with an
+    # OwningAccountId. fetch_live_topology must build the normalize()-ready dict,
+    # capture the account id, and record discovery paths.
+    pages = [
+        {
+            "Resources": [
+                {
+                    "Arn": "arn:aws:s3:::b1",
+                    "Service": "s3",
+                    "Region": "eu-west-1",
+                    "OwningAccountId": "111122223333",
+                    "CfnResourceType": "AWS::S3::Bucket",
+                },
+                {
+                    "Arn": "arn:aws:ecs:eu-west-1:111122223333:cluster/c1",
+                    "Service": "ecs",
+                    "Region": "eu-west-1",
+                    "OwningAccountId": "111122223333",
+                },
+            ]
+        }
+    ]
+
+    class _FakePaginator:
+        def paginate(self, **kwargs):
+            return iter(pages)
+
+    class _FakeReClient:
+        def get_paginator(self, name):
+            assert name == "list_resources", f"expected ListResources, got {name}"
+            return _FakePaginator()
+
+    class _FakeSession:
+        region_name = "eu-west-1"
+
+        def client(self, name, region_name=None):
+            # No sts get_caller_identity needed: OwningAccountId is present.
+            return _FakeReClient()
+
+    original = topology_source._make_session
+    topology_source._make_session = lambda: _FakeSession()
+    try:
+        topo = topology_source.fetch_live_topology()
+    finally:
+        topology_source._make_session = original
+
+    assert topo["account_id"] == "111122223333", topo
+    assert len(topo["resources"]) == 2, topo
+    assert "resource-explorer" in topo["discovery_paths"], topo
+    # One resource carried a CfnResourceType -> cloudformation path asserted.
+    assert "cloudformation" in topo["discovery_paths"], topo
 
 
 if __name__ == "__main__":
