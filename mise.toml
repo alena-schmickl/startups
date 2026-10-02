@@ -151,7 +151,7 @@ description = "Run Bandit (per-plugin skip configs for migration-to-aws, aws-sta
 run = [
   "bandit -r migrate/plugins/migration-to-aws -c migrate/plugins/migration-to-aws/bandit.yml -x migrate/plugins/migration-to-aws/skills/agent-advisor/scripts/.venv,migrate/plugins/migration-to-aws/skills/llm-to-bedrock/scripts/.venv,migrate/plugins/migration-to-aws/tests",
   "bandit -r advisor/plugins/aws-startup-advisor -c advisor/plugins/aws-startup-advisor/bandit.yml -x advisor/plugins/aws-startup-advisor/skills/agent-advisor/scripts/.venv,advisor/plugins/aws-startup-advisor/skills/llm-to-bedrock/scripts/.venv,advisor/plugins/aws-startup-advisor/tests",
-  "bandit -r solution-architecture/plugins/aws-startups-solution-architecture -c solution-architecture/plugins/aws-startups-solution-architecture/bandit.yml -x solution-architecture/plugins/aws-startups-solution-architecture/skills/hcls-stack-check/tests",
+  "bandit -r solution-architecture/plugins/aws-startups-solution-architecture -c solution-architecture/plugins/aws-startups-solution-architecture/bandit.yml -x solution-architecture/plugins/aws-startups-solution-architecture/skills/hcls-stack-check/scripts/.venv",
   "bandit -r . --exclude ./.tmp,./node_modules,./migrate/plugins/migration-to-aws,./advisor/plugins/aws-startup-advisor,./solution-architecture/plugins/aws-startups-solution-architecture",
 ]
 

@@ -73,13 +73,16 @@ jobs:
         # Pass 2: aws-startup-advisor scripts with its own config (same skips — the migration skills
         #         were consolidated into this plugin, carrying the same pytest suites).
         # Pass 3: aws-startups-solution-architecture with its own config (B101/B105 skipped — the
-        #         hcls-stack-check skill ships a deterministic core plus a pytest suite).
+        #         hcls-stack-check skill ships a deterministic core plus a co-located pytest suite
+        #         under scripts/; the pinned uv .venv is excluded as third-party code).
         # Pass 4: everything else with no skips, so future Python anywhere gets full bandit strictness.
         # Each plugin's tests/ is additionally excluded from pass 4: they are pytest suites (assert is
         # the assertion mechanism, not a guard) that also contain a test fixture string starting with
         # "pass" (false-positive B105) and a subprocess.run() call with a fixed arg list and no
         # shell=True (the secure form, not the risky one — B404/B603). The production script each tests
         # (scripts/validate-migration-report.py) is NOT excluded and stays under full strictness.
+        # (aws-startups-solution-architecture keeps its tests under scripts/ with the plugin config,
+        # so pass 4 excludes that plugin's scripts/.venv rather than a tests/ dir.)
         # The four SARIF outputs are merged into one for upload.
         run: |
           pip install "bandit[sarif]==1.9.3"
@@ -94,9 +97,9 @@ jobs:
           PLUGIN_EXIT=$?
           bandit -r "$ADVISOR_DIR" -c "$ADVISOR_CFG" -x "$ADVISOR_DIR/tests" -f sarif -o bandit-advisor.sarif
           ADVISOR_EXIT=$?
-          bandit -r "$SA_DIR" -c "$SA_CFG" -x "$SA_DIR/skills/hcls-stack-check/tests" -f sarif -o bandit-sa.sarif
+          bandit -r "$SA_DIR" -c "$SA_CFG" -x "$SA_DIR/skills/hcls-stack-check/scripts/.venv" -f sarif -o bandit-sa.sarif
           SA_EXIT=$?
-          bandit -r . --exclude "./$PLUGIN_DIR,./$PLUGIN_DIR/tests,./$ADVISOR_DIR,./$ADVISOR_DIR/tests,./$SA_DIR,./$SA_DIR/skills/hcls-stack-check/tests" -f sarif -o bandit-other.sarif
+          bandit -r . --exclude "./$PLUGIN_DIR,./$PLUGIN_DIR/tests,./$ADVISOR_DIR,./$ADVISOR_DIR/tests,./$SA_DIR,./$SA_DIR/skills/hcls-stack-check/scripts/.venv" -f sarif -o bandit-other.sarif
           OTHER_EXIT=$?
           set -e
           # Merge: keep pass-1 envelope, concatenate results from passes 2, 3 and 4.
