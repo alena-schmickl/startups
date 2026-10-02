@@ -73,7 +73,7 @@ the harness emits at load time. Call it `<SKILL_BASE>`. The Python lives under:
 
 Run it with `uv` so the pinned dependencies (`boto3>=1.43`, which ships the
 Resource Explorer `ListResources` paginator) are present. Do **not** run a bare
-`python src/main.py` — there is no `src/`, and a relative path is resolved
+`python src/main.py`: there is no `src/`, and a relative path is resolved
 against the user's working directory, not the skill:
 
 ```bash
@@ -130,7 +130,7 @@ by hand.
   Normalized, case-insensitive name match (strip a leading `Amazon` or `AWS`
   prefix; index parenthesized short codes). Verdicts: `yes` / `yes-with-caveat`
   / `not-on-list` / `unmapped`. A resource whose service code cannot be resolved
-  to a known AWS name is shown as `unknown` with an `unmapped` verdict — never
+  to a known AWS name is shown as `unknown` with an `unmapped` verdict, never
   dropped, and never a false `not-on-list`.
 - **Rule 4, region facts are tri-state; EU availability may be unknown.** EU
   classification is `yes` / `no` / `global` / `unknown`; a global or
