@@ -18,19 +18,32 @@ AWS_PROFILE = os.environ.get("AWS_PROFILE")
 # The global-infrastructure parameters live in us-east-1.
 _SSM_REGION = "us-east-1"
 
-# Canonical EU region set for the data-residency check.
+# Canonical EU region set for the data-residency check. NOTE on exclusions:
+#   - eu-west-2 (London) is in the UK, which left the EU; it is NOT an EU region.
+#   - eu-central-2 (Zurich) is in Switzerland, which is not an EU member state.
+# Both carry the "eu-" prefix but are outside the EU, so they are deliberately
+# excluded here. Membership is by the real jurisdiction, not the region prefix.
 EU_REGIONS: frozenset[str] = frozenset(
     {
-        "eu-central-1",
-        "eu-central-2",
-        "eu-west-1",
-        "eu-west-2",
-        "eu-west-3",
-        "eu-north-1",
-        "eu-south-1",
-        "eu-south-2",
+        "eu-central-1",  # Frankfurt
+        "eu-west-1",     # Ireland
+        "eu-west-3",     # Paris
+        "eu-north-1",    # Stockholm
+        "eu-south-1",    # Milan
+        "eu-south-2",    # Spain
     }
 )
+
+# Region status outcomes for the EU column (tri-state, never a false "no").
+EU_YES = "yes"
+EU_NO = "no"
+EU_GLOBAL = "global"
+EU_UNKNOWN = "unknown"
+
+# Global (non-regional) AWS service ARNs report an empty or "aws-global"-style
+# region. Those resources have no single data-residency region, so the EU column
+# must read "global", not a misleading "no".
+_GLOBAL_REGION_MARKERS = frozenset({"", "aws-global", "global", "us-gov-global", "aws-cn-global"})
 
 # Known display-name to SSM service-slug mappings for common services. The SSM
 # global-infrastructure service slugs are short codes (e.g. "s3", "ec2").
@@ -58,6 +71,31 @@ class EuAvailability(TypedDict):
 def is_eu_region(region: str) -> bool:
     """Return True if the given region is in the EU region set."""
     return region in EU_REGIONS
+
+
+def eu_region_status(region: Optional[str]) -> str:
+    """Classify a resource's region for the EU column (tri-state).
+
+    Returns one of:
+      - EU_YES     the region is an EU region.
+      - EU_GLOBAL  the resource is global / non-regional (empty or an
+                   "aws-global"-style marker). It has no single residency region.
+      - EU_UNKNOWN region is missing/unparseable in a way that is neither clearly
+                   EU, clearly non-EU, nor clearly global.
+      - EU_NO      a real, non-EU regional location.
+
+    Empty/global regions deliberately map to EU_GLOBAL / EU_UNKNOWN rather than a
+    misleading EU_NO.
+    """
+    r = (region or "").strip().lower()
+    if r in _GLOBAL_REGION_MARKERS:
+        # Empty string is ambiguous: could be a global service or just missing
+        # metadata. Treat a truly empty value as unknown, named global markers
+        # as global.
+        return EU_UNKNOWN if r == "" else EU_GLOBAL
+    if r in EU_REGIONS:
+        return EU_YES
+    return EU_NO
 
 
 def resolve_service_slug(service: str) -> Optional[str]:
