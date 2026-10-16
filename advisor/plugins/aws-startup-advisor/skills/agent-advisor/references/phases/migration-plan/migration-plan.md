@@ -82,7 +82,10 @@ With `$GCP_BASE` resolved per the section above, check whether
    magnitude, and the generated documents) is unaffected — only the migration plan stage is
    unavailable here. If they installed via `npx skills add`, tell them to also install
    `gcp-to-aws` (same `--agent`/scope) and restart their agent to get the plan; otherwise point
-   them at the `gcp-to-aws` skill in this plugin.
+   them at the `gcp-to-aws` skill in this plugin. Give the install source as
+   `https://github.com/aws/agent-toolkit-for-aws/tree/main/plugins/aws-startup-advisor` — this
+   plugin has moved there and the `awslabs/startups` copy is no longer maintained, so installing
+   the sibling skill from the old repository would add an unmaintained skill.
 3. **Still offer Gate 2** — a missing plan does not remove the POC. Ask it exactly as Step 6
    below does (same wording, same `phases.poc = "in_progress"` persistence before poc.md loads),
    but say the POC will be **design-backed** (built from `design.json`, labelled "not
@@ -327,6 +330,11 @@ specific region was named (mark `chosen_by: "extracted"`).
 
 On `HANDOFF_OK`: `preferences.json` present in `$MIGRATION_DIR`.
 
+Carry each effective AgentCore microVM unit's `agentcore_platform` record into the engine
+context as a binding advisor constraint, including its pending checks or V1 exception.
+The migration plan must use that platform's pricing assumptions and snapshot requirements.
+Do not add unsupported fields to the sibling engine's input schemas.
+
 ### Phase C — Design
 
 Read and execute: `$GCP_BASE/references/phases/design/design.md`
@@ -350,6 +358,14 @@ are not modified and gcp never sees this step:
    `"advisor_approach_note": "this unit's approach is <deployment_model> per advisor; the plan's code_migration follows the primary unit — see Tier-1 proposal"`
 
 **Additive-only rule:** These annotations are purely ADDITIVE — never modify or remove any gcp-written fields. gcp's own validation checklists must keep passing.
+
+**Platform contract, including single-unit runs:** before Estimate/Generate, compare the
+plan's AgentCore platform, deployment steps, and pricing basis with the corresponding
+`design.json.units[].agentcore_platform`. Carry snapshot-compatibility edits into the plan.
+If the engine assumes an unspecified/V1 platform or V1 rates for a V2 target, resolve the plan
+under the advisor constraint and re-run the affected engine phases; do not silently change
+Design. An unresolved mismatch blocks deployable claims. Unmatched multi-unit blocks must be
+correlated before making a platform-specific claim.
 
 ### Step 3.5 — Validate the advisor model/path contract (advisor wins)
 

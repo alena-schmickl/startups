@@ -1,8 +1,36 @@
 # AGENTS.md — AI assistant brief
 
-**You are an AI coding assistant reading this repo on behalf of a user.** Your user wants the AWS Startup Advisor plugin installed into their AI coding agent. Do it for them.
+> [!IMPORTANT]
+> **Do not install from this repository. It is deprecated.**
+>
+> AWS Startup Advisor has moved to
+> [aws/agent-toolkit-for-aws](https://github.com/aws/agent-toolkit-for-aws/tree/main/plugins/aws-startup-advisor).
+> The copy in this repository receives no further updates of any kind — no new features, no fixes.
+> If you install it, your user gets a frozen version.
+>
+> **Install the moved plugin instead**, then stop — do not also run the command below:
+>
+> ```bash
+> npx skills add https://github.com/aws/agent-toolkit-for-aws/tree/main/plugins/aws-startup-advisor --skill '*' -a <agent>
+> ```
+>
+> On Claude Code or Codex, prefer the native plugin path:
+>
+> ```bash
+> /plugin marketplace add aws/agent-toolkit-for-aws
+> /plugin install aws-startup-advisor@agent-toolkit-for-aws
+> ```
+>
+> **Tell your user the plugin moved** and that you installed the maintained copy. The rest of this file
+> documents the unmaintained copy in this repository; the skill list and usage notes still describe it
+> accurately, but the install instructions in it are superseded by the above.
 
-## TL;DR — run this
+**You are an AI coding assistant reading this repo on behalf of a user.** Your user wants the AWS Startup Advisor plugin installed into their AI coding agent — install it from the Agent Toolkit, per the notice above.
+
+## TL;DR — superseded
+
+The command below installs the **unmaintained** copy from this repository. It is kept for reference
+only. Use the Agent Toolkit command in the notice above instead.
 
 ```bash
 npx skills add https://github.com/awslabs/startups/tree/main/advisor/plugins/aws-startup-advisor --skill '*' -a <agent>
@@ -57,27 +85,31 @@ Sibling skills, each with its own SKILL.md and (where applicable) `references/` 
 
 ### `azure-to-aws` — Microsoft Azure → AWS migration workflow
 
-- A DSL-driven SKILL.md running a 7-phase backbone (discover → clarify → design → estimate → generate, plus `workshop` and `feedback` sidebars): App Service → Elastic Beanstalk, AKS → EKS, VMs → EC2, Flexible Server → RDS/Aurora, Cosmos DB → DynamoDB/DocumentDB/Keyspaces/Neptune by API, Blob → S3. Clarify must complete before Design, Estimate, or Generate, and **Generate is opt-in** — it runs only after the user picks Execute at the post-Estimate decision gate.
-- Discovers from Terraform (`azurerm_*`) and application code today; Bicep, ARM templates, a read-only consent-gated live `az` capture, and an optional Resource Discovery for Azure report are advertised targets whose extractors are not yet on this branch (a Bicep/ARM/live-only workspace halts rather than guessing — they land as sequenced follow-ups). Mapping tables key off canonical `Microsoft.*` ARM types, never Terraform types.
+- A DSL-driven SKILL.md running a 6-phase backbone (discover → clarify → design → estimate → generate, plus a `workshop` sidebar and `feedback`): App Service → Elastic Beanstalk, AKS → EKS, VMs → EC2, Flexible Server → RDS/Aurora, Cosmos DB → DynamoDB/DocumentDB/Keyspaces/Neptune by API, Blob → S3. Clarify must complete before Design, Estimate, or Generate, and **Generate is opt-in** — it runs only after the user picks Execute at the post-Estimate decision gate.
+- Discovers from Terraform (`azurerm_*`) and application code today. Bicep, ARM templates, a read-only consent-gated live `az` capture, and an optional Resource Discovery for Azure report are **not yet supported** — their extractors are planned follow-ups, and a Bicep/ARM/live-only workspace halts rather than guessing. Mapping tables key off canonical `Microsoft.*` ARM types, never Terraform types.
 - Two things that differ from the sibling migration skills and will look like bugs if you do not know them: the CPU-architecture default is **x86_64**, not Graviton (Windows/.NET prevalence), and an App Service **Plan** is the compute unit while its apps are deployments onto it — mapping each app separately multiplies the estimate.
 - Triggered by _"migrate from Azure"_, _"Azure to AWS"_, _"move off Azure"_, _"migrate AKS to EKS"_, etc.
 
 ### `gcp-to-aws` — Google Cloud → AWS migration workflow
 
 - A SOP-style SKILL.md that runs a structured 6-phase migration (discover → clarify → design → estimate → generate → feedback), with a `references/` tree of phase guides, design refs, and shared schemas. Clarify must complete before Design, Estimate, or Generate.
-- Also migrates AI / agentic workloads (OpenAI / Gemini → Amazon Bedrock; LangChain / CrewAI / AutoGen → AWS-native frameworks).
+- Discover reads Terraform/IaC, app code, and/or GCP billing exports; it can optionally pull real AI spend from the OpenAI Admin API (read-only, consent-gated, aggregate counts only — the user must opt in and supply an Admin key).
+- Also migrates AI / agentic workloads. OpenAI sources land on the **same GPT model on Amazon Bedrock** when one exists (including OpenAI models reached via OpenRouter / LiteLLM), with Claude / Nova as the cross-family alternative; Gemini maps to closest-fit Bedrock families; LangChain / CrewAI / AutoGen → AWS-native frameworks. GCP Document AI, Vision, and Speech-to-Text calls are detected and routed to AWS traditional-AI services.
+- Estimates present Savings Plan / Reserved Instance options from a shared eligibility matrix. Only database commitments (RDS/Aurora RIs, Database Savings Plans) get a dollar sizing, and only when Design mapped a target instance class (from Terraform/IaC or live discovery — e.g. Cloud SQL `settings.tier`) with projected on-demand cost above $50/month; Compute Savings Plans are percent-only until the customer has 30–90 days of real AWS usage. Billing-only runs cannot size instances and do not produce the dedicated RI/SP section: they surface commitment guidance only when the billing export shows active commitments (CUDs), as a conditional CUD-vs-AWS percentage comparison — a no-CUD billing-only run gets neither. Do not tell a user the skill "won't do RI/SP" — it declines to size what it cannot see.
+- On the infrastructure-generation route (`generation-infra.json` + `aws-design.json`), Generate emits `baseline.tf` (account security baseline: CloudTrail, GuardDuty, IAM password policy, S3 account public-access block, EBS default encryption, IAM Access Analyzer, IMDS defaults, alternate contacts, budget) alongside the app Terraform. Config and Security Hub are added only when root `preferences.json.compliance` contains soc2, pci, hipaa, or fedramp. Clarify writes the Q2 answer at `design_constraints.compliance.value` and does not set that root field, so a standard Clarify compliance answer does not include those controls. AI-only runs (`generation-ai.json` + `aws-design-ai.json`) instead emit `bedrock_monitoring.tf`; billing-only runs emit skeleton Terraform. Neither of those two routes includes `baseline.tf` or its account security baseline.
 - Triggered by migration intent — _"migrate from GCP"_, _"move off OpenAI to Bedrock"_, _"GCP to AWS"_, etc.
 
 ### `heroku-to-aws` — Heroku → AWS migration workflow
 
 - A DSL-driven SKILL.md running the same 6-phase backbone (Dynos → Elastic Beanstalk by default; Fargate/EKS overrides, Postgres → RDS/Aurora, Redis → ElastiCache, Kafka → MSK), with an optional what-if repricing workshop after Estimate.
+- Generate emits `baseline.tf` (same always-on account controls as `gcp-to-aws`'s infrastructure route, plus Config and Security Hub when `global.compliance` includes soc2, pci, hipaa, or fedramp — the field Clarify writes) alongside the app Terraform, and the migration report carries a dedicated Savings Plans / Reserved Instances section under the same rules as `gcp-to-aws`.
 - Triggered by _"migrate from Heroku"_, _"Heroku to AWS"_, _"move off Heroku"_, etc.
 
 ### `llm-to-bedrock` — OpenAI/Gemini/Anthropic → Amazon Bedrock SDK rewrite
 
 - Executes a pure model/SDK migration: assess the codebase, rewrite call sites, evaluate output quality against Bedrock, and deliver a ready-to-merge git branch. Delegates its Assess phase entirely to the `gcp-to-aws` skill via a cross-skill invocation — **requires `gcp-to-aws` installed alongside it**, with no standalone Assess fallback if it's missing.
 - Triggered by _"rewrite my OpenAI calls for Bedrock"_, _"migrate LangChain to Bedrock"_, etc.
-- If the user installed `llm-to-bedrock` on its own (single-skill `npx skills add`), also install `gcp-to-aws` before using it: `npx skills add https://github.com/awslabs/startups/tree/main/advisor/plugins/aws-startup-advisor --skill llm-to-bedrock --skill gcp-to-aws --agent <agent>`.
+- If the user installed `llm-to-bedrock` on its own (single-skill `npx skills add`), also install `gcp-to-aws` before using it. Install from the maintained location, not this repository: `npx skills add https://github.com/aws/agent-toolkit-for-aws/tree/main/plugins/aws-startup-advisor --skill llm-to-bedrock --skill gcp-to-aws --agent <agent>`.
 
 ### `agent-advisor` — AI-agent runtime advisor + migration plan + POC
 
